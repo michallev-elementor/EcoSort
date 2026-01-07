@@ -12,3 +12,44 @@ https://universe.roboflow.com/material-identification/garbage-classification-3/d
 robot docs:
 https://wiki.hiwonder.com/projects/ArmPi_Pro/en/latest/
 
+
+
+sequenceDiagram
+    participant Robot as Robot Arm
+    participant Main as Main Controller
+    participant Vision as Vision Manager
+    participant BinDet as Bin Detector
+    participant Mapper as Coordinate Mapper
+    participant Cam as USB Camera
+    
+    Note over Robot,Cam: STARTUP PHASE
+    Main->>Robot: Move to home position
+    Main->>Cam: Capture calibration frame
+    Cam-->>Main: Frame
+    Main->>BinDet: detect_orange_bin(frame)
+    BinDet->>BinDet: HSV filtering
+    BinDet->>BinDet: Find largest orange contour
+    BinDet-->>Main: Bin centroid (480, 350)
+    Main->>Mapper: pixel_to_world(480, 350)
+    Mapper-->>Main: Bin coords (-12.3, 14.5, 10.0)
+    Main->>Main: Store bin location
+    
+    Note over Robot,Cam: MAIN SORTING LOOP
+    loop For each item
+        Main->>Cam: Capture frame
+        Cam-->>Main: Frame
+        Main->>Vision: detect_objects(frame)
+        Vision->>Vision: YOLO inference
+        Vision-->>Main: Plastic bbox (120,150,280,310)
+        Main->>Main: Calculate centroid (200, 230)
+        Main->>Mapper: pixel_to_world(200, 230)
+        Mapper-->>Main: Plastic coords (5.2, 18.7, 2.0)
+        
+        Main->>Robot: pickup(5.2, 18.7, 2.0)
+        Robot-->>Main: Item grabbed
+        
+        Main->>Robot: drop(-12.3, 14.5, 10.0)
+        Robot-->>Main: Item sorted
+        
+        Main->>Robot: move_to_home()
+    end
